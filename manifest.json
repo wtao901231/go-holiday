@@ -3,11 +3,18 @@
   "short_name": "Go Holiday",
   "description": "简约彩色的假期管理工具",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#FF6B35",
   "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "icons/logo.svg",
       "sizes": "any",
@@ -40,5 +47,6 @@
     }
   ],
   "categories": ["productivity", "lifestyle"],
-  "screenshots": []
+  "screenshots": [],
+  "prefer_related_applications": false
 }
