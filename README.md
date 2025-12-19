@@ -238,7 +238,7 @@ go-holiday/
 
 **[⬆ 回到顶部](#-go-holiday---极简假期日历搜索首页)**
 
-Made with ❤️ by [Tagore Wang](https://github.com/tagorewang)
+Made with ❤️ by [tagorewang](https://github.com/wtao901231)
 
 如果这个项目对你有帮助，请给个 ⭐️ Star 支持一下！
 
