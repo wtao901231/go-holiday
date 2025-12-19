@@ -156,33 +156,6 @@ index.html?holiday=my-custom-holidays.json
 
 ---
 
-## 🎨 页面预览
-
-<div align="center">
-
-### 桌面端视图
-![Desktop View](https://via.placeholder.com/800x450/f8f9fa/333333?text=Desktop+View+-+Full+Year+Heatmap)
-
-*完整的 53 周热力图，支持横向滚动和交互聚焦*
-
----
-
-### 移动端视图
-![Mobile View](https://via.placeholder.com/375x667/f8f9fa/333333?text=Mobile+View+-+Monthly+Grid)
-
-*3×4 月度网格布局，完美适配手机屏幕*
-
----
-
-### 交互效果
-![Interactive Focus](https://via.placeholder.com/800x450/f8f9fa/333333?text=Interactive+Focus+Effect)
-
-*点击日期产生渐变聚焦效果，今日自动高亮*
-
-</div>
-
----
-
 ## 🛠️ 技术栈
 
 - **HTML5** - 语义化结构
