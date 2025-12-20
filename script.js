@@ -387,12 +387,20 @@ function renderMobileHeatmap(data, year) {
         container.appendChild(monthWrapper);
     }
 
-    // Scroll to today
+    // Scroll to today and set initial focus
     if (todayElement) {
         setTimeout(() => {
             todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             updateMobileFocus(todayElement);
         }, 300);
+    } else {
+        // If today is not in the current year, focus on the first cell
+        const firstCell = container.querySelector('.mobile-heatmap-cell');
+        if (firstCell) {
+            setTimeout(() => {
+                updateMobileFocus(firstCell);
+            }, 300);
+        }
     }
 }
 

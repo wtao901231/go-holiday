@@ -51,6 +51,8 @@
   "2026-06-19": { "type": "trip_current", "name": "端午节" },
   "2026-06-20": { "type": "trip_current", "name": "端午节" },
   "2026-06-21": { "type": "trip_current", "name": "端午节" },
+  "2026-08-15": { "type": "trip_next", "name": "周末" },
+  "2026-08-16": { "type": "trip_next", "name": "周末" },
   "2026-08-17": { "type": "trip_next", "name": "特别假" },
   "2026-08-18": { "type": "trip_next", "name": "特别假" },
   "2026-08-19": { "type": "trip_next", "name": "特别假" },
