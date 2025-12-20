@@ -39,7 +39,7 @@
   "2026-10-07": { "type": "holiday", "name": "国庆节" },
   "2026-10-10": { "type": "workday", "name": "国庆节补班" },
   "2026-01-04": { "type": "personal", "name": "元旦休假" },
-  "2026-02-14": { "type": "personal", "name": "春节休假" },
+  "2026-02-14": { "type": "personal", "name": "春节特别假" },
   "2026-02-24": { "type": "personal", "name": "春节休假" },
   "2026-05-09": { "type": "personal", "name": "劳动节休假" },
   "2026-06-13": { "type": "trip_current", "name": "端午周末" },
