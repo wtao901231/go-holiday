@@ -67,7 +67,6 @@
   "2026-11-13": { "type": "personal", "name": "秋假" },
   "2026-11-14": { "type": "trip_next", "name": "周末" },
   "2026-11-15": { "type": "trip_next", "name": "周末" },
-
   "2026-06-01": { "type": "personal", "name": "六一休假" },
   "2026-06-07": { "type": "workday", "name": "5.0.9 加班" },
   "2026-06-13": { "type": "workday", "name": "5.0.9 加班" },
