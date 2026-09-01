@@ -130,6 +130,11 @@ npx serve
   "2026-01-04": { 
     "type": "workday", 
     "name": "调休补班" 
+  },
+  "2026-10-20": { 
+    "type": "color_life", 
+    "name": "自定义事件", 
+    "color": "#8E44ADCC" 
   }
 }
 ```
@@ -143,6 +148,25 @@ npx serve
 | `workday` | 调休工作日 | ⚫ 深灰色 |
 | `trip_current` | 当前行程 | 🟢 绿色 |
 | `trip_next` | 计划行程 | 🟡 黄色 |
+| `color_life` | 自定义颜色 | 🎨 由 `color` 字段决定（缺省为紫色） |
+
+### 自定义颜色（color）
+
+- 仅当 `type` 为 `color_life`（或填写了未知的 type）时，会读取同级的 `color` 字段作为格子颜色。
+- 其余预制 type 的颜色固定，不受 `color` 字段影响。
+- `color` 支持格式：`#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA`（`#` 可省略），以及 `rgb()` / `rgba()` / `hsl()` / `hsla()`。
+- 格式非法时自动回退到该 type 的默认颜色。
+
+```json
+{
+  "2026-07-20": { "type": "color_life", "name": "生日", "color": "#ffffffff" },
+  "2026-07-21": { "type": "color_life", "name": "纪念日", "color": "rgba(255, 99, 132, 0.8)" }
+}
+```
+
+### 时间流逝表现
+
+日期小于或等于「今天」的格子会自动轻微弱化：略微降低饱和度并叠加稍低的不透明度，用于表达「这段时间已经过去」。弱化幅度较小，原本的颜色依然清晰可辨，未来的日期则保持全饱和度显示。
 
 ### URL 参数配置
 

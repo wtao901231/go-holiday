@@ -57,6 +57,20 @@ body {
     background-color: #d1d5db;
 }
 
+/* Heatmap cell coloring
+   Color comes from the --cell-color CSS variable, which is set by JS from the
+   preset type color or from the custom `color` field in the JSON data. */
+.heatmap-cell {
+    --cell-color: #F1F3F4;
+    background-color: var(--cell-color);
+}
+
+/* Past cells (date <= today): lightly veiled.
+   Hue stays clearly recognizable, only slightly softened. */
+.heatmap-cell.is-past {
+    filter: saturate(0.8) brightness(1.03);
+}
+
 /* Animation */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }

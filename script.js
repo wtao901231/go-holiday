@@ -1,12 +1,20 @@
 // Configuration
+// Preset colors (hex). Cells are painted via the --cell-color CSS variable,
+// so any custom color from JSON works the same way as the presets.
 const COLORS = {
-    holiday: 'bg-[#EA4335]',      // Google Red
-    personal: 'bg-[#4285F4]',     // Google Blue
-    workday: 'bg-[#9AA0A6]',      // Google Grey Dark
-    trip_current: 'bg-[#34A853]', // Google Green
-    trip_next: 'bg-[#FBBC05]',    // Google Yellow
-    default: 'bg-[#F1F3F4]'       // Google Grey Light
+    holiday: '#EA4335',      // Google Red
+    personal: '#4285F4',     // Google Blue
+    workday: '#9AA0A6',      // Google Grey Dark
+    trip_current: '#34A853', // Google Green
+    trip_next: '#FBBC05',    // Google Yellow
+    color_life: '#A142F4',   // Google Purple (fallback when no custom color given)
+    default: '#F1F3F4'       // Google Grey Light
 };
+// Types allowed to override their color through the JSON `color` field
+const CUSTOM_COLOR_TYPES = ['color_life'];
+// Past cells (date <= today) are slightly weakened: the original hue stays
+// recognizable, only lightly veiled.
+const PAST_OPACITY_FACTOR = 0.8;
 const TODAY_BORDER = 'border-2 border-[#1a73e8]'; // Google Blue for focus
 const DEFAULT_HOLIDAYS_URL = 'holidays.json';
 const STORAGE_KEY = 'custom_holidays_url';
@@ -44,6 +52,52 @@ const ENGINES = {
     }
 };
 
+// Helper: Validate / normalize a color string from JSON
+// Supports #RGB, #RGBA, #RRGGBB, #RRGGBBAA (with or without leading '#')
+// and rgb()/rgba()/hsl()/hsla() functional notations.
+function normalizeColor(raw) {
+    if (typeof raw !== 'string') return null;
+    let value = raw.trim();
+    if (!value) return null;
+
+    if (/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value)) {
+        value = `#${value}`;
+    }
+    if (/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value)) {
+        return value;
+    }
+    if (/^(?:rgb|rgba|hsl|hsla)\([\d\s.,%/-]+\)$/i.test(value)) {
+        return value;
+    }
+    return null;
+}
+
+// Helper: Resolve the final cell color for a day record
+function resolveCellColor(dayData) {
+    if (!dayData) return COLORS.default;
+
+    const type = dayData.type;
+    const isCustomizable = CUSTOM_COLOR_TYPES.includes(type) || !COLORS[type];
+    if (isCustomizable) {
+        const custom = normalizeColor(dayData.color);
+        if (custom) return custom;
+    }
+
+    return COLORS[type] || COLORS.default;
+}
+
+// Helper: Compare YYYY-MM-DD strings (lexicographic order works for this format)
+function isPastDate(dateStr, todayStr) {
+    return Boolean(dateStr) && dateStr <= todayStr;
+}
+
+// Helper: Paint a cell (color + past weakening)
+function applyCellStyle(cell, dayData, isPast) {
+    cell.style.setProperty('--cell-color', resolveCellColor(dayData));
+    cell.dataset.past = isPast ? '1' : '0';
+    if (isPast) cell.classList.add('is-past');
+}
+
 // Helper: Normalize holiday data and select display year
 function prepareHolidayData(rawData) {
     if (!rawData || typeof rawData !== 'object') {
@@ -59,6 +113,7 @@ function prepareHolidayData(rawData) {
                 date: item.date,
                 type: item.type,
                 name: item.name,
+                color: item.color,
                 order: index
             });
         });
@@ -71,6 +126,7 @@ function prepareHolidayData(rawData) {
                 date: dateStr,
                 type: value.type,
                 name: value.name,
+                color: value.color,
                 order: index
             });
         });
@@ -109,7 +165,7 @@ function prepareHolidayData(rawData) {
     records.forEach(rec => {
         const year = parseInt(rec.date.slice(0, 4), 10);
         if (year === displayYear && rec.date) {
-            dataByDate[rec.date] = { type: rec.type, name: rec.name };
+            dataByDate[rec.date] = { type: rec.type, name: rec.name, color: rec.color };
         }
     });
 
@@ -340,20 +396,14 @@ function renderMobileHeatmap(data, year) {
             const dateStr = formatDate(currentDate);
             const dayData = data[dateStr];
             const isToday = dateStr === todayStr;
+            const isPast = isPastDate(dateStr, todayStr);
 
-            let colorClass = COLORS.default;
-            let label = '';
-            
-            if (dayData) {
-                if (COLORS[dayData.type]) {
-                    colorClass = COLORS[dayData.type];
-                }
-                label = dayData.name;
-            }
+            const label = dayData ? (dayData.name || '') : '';
 
             const cell = document.createElement('div');
             // Responsive size: w-full aspect-square
-            cell.className = `w-full aspect-square rounded-[1px] ${colorClass} relative cursor-pointer transition-opacity hover:opacity-80 mobile-heatmap-cell`;
+            cell.className = `w-full aspect-square rounded-[1px] heatmap-cell relative cursor-pointer transition-opacity hover:opacity-80 mobile-heatmap-cell`;
+            applyCellStyle(cell, dayData, isPast);
 
             if (isToday) {
                 cell.classList.add('ring-1', 'ring-blue-600', 'ring-offset-[0.5px]', 'z-10');
@@ -434,6 +484,9 @@ function updateMobileFocus(targetCell) {
         let opacity = 1 - (distUnits / 20) * 0.6;
         if (opacity < 0.4) opacity = 0.4;
         
+        // Past days are weakened further
+        if (pos.cell.dataset.past === '1') opacity *= PAST_OPACITY_FACTOR;
+        
         pos.cell.style.opacity = opacity;
     });
 }
@@ -473,27 +526,21 @@ function renderDesktopHeatmap(data, year) {
             const dateStr = formatDate(currentDate);
             const dayData = data[dateStr];
             const isToday = dateStr === todayStr;
-            
-            // Determine Color
-            let colorClass = COLORS.default;
-            let label = '';
-            
-            if (dayData) {
-                if (COLORS[dayData.type]) {
-                    colorClass = COLORS[dayData.type];
-                }
-                label = dayData.name;
-            }
+            const isPast = isPastDate(dateStr, todayStr);
+
+            const label = dayData ? (dayData.name || '') : '';
 
             // Create Cell
             const cell = document.createElement('div');
             // Size: w-3 h-3 (12px)
-            cell.className = `w-3 h-3 rounded-sm ${colorClass} transition-all duration-300 cursor-pointer relative desktop-heatmap-cell`;
-            
+            cell.className = `w-3 h-3 rounded-sm heatmap-cell transition-all duration-300 cursor-pointer relative desktop-heatmap-cell`;
+
             if (isToday) {
-                cell.className = `w-3 h-3 rounded-sm ${colorClass} transition-all duration-300 cursor-pointer relative desktop-heatmap-cell ${TODAY_BORDER} shadow-md`;
+                cell.className = `w-3 h-3 rounded-sm heatmap-cell transition-all duration-300 cursor-pointer relative desktop-heatmap-cell ${TODAY_BORDER} shadow-md`;
                 todayCoords = { w, d };
             }
+
+            applyCellStyle(cell, dayData, isPast);
 
             // Data attributes for tooltip and focus logic
             cell.dataset.date = dateStr;
@@ -578,6 +625,9 @@ function updateFocus(targetW, targetD) {
         // Opacity logic: 1 at center, fading out
         let opacity = 1 - (dist / 20) * 0.6;
         if (opacity < 0.4) opacity = 0.4; // Minimum opacity
+        
+        // Past days are weakened further
+        if (cell.dataset.past === '1') opacity *= PAST_OPACITY_FACTOR;
         
         cell.style.opacity = opacity;
     });
