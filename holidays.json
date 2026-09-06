@@ -24,7 +24,7 @@
   "2026-04-04": { "type": "holiday", "name": "清明节" },
   "2026-04-05": { "type": "holiday", "name": "清明节" },
   "2026-04-06": { "type": "holiday", "name": "清明节" },
-  "2026-04-20": { "type": "workday", "name": "病休" },
+  "2026-04-20": { "type": "color_life", "name": "病休", "color": "#A5D6C5" },
   "2026-05-01": { "type": "holiday", "name": "劳动节" },
   "2026-05-02": { "type": "holiday", "name": "劳动节" },
   "2026-05-03": { "type": "holiday", "name": "劳动节" },
@@ -68,7 +68,9 @@
   "2026-11-14": { "type": "trip_next", "name": "周末" },
   "2026-11-15": { "type": "trip_next", "name": "周末" },
   "2026-06-01": { "type": "personal", "name": "六一休假" },
-  "2026-06-07": { "type": "workday", "name": "加班(5.0.9)" },
-  "2026-06-13": { "type": "workday", "name": "加班(5.0.9)" },
-  "2026-06-29": { "type": "personal", "name": "调休假" }
+  "2026-06-07": { "type": "color_life", "name": "加班/5.0.9", "color": "#1A1A1A"},
+  "2026-06-13": { "type": "color_life", "name": "加班/5.0.9", "color": "#1A1A1A"},
+  "2026-09-05": { "type": "color_life", "name": "加班/5.0.11", "color": "#1A1A1A"},
+  "2026-06-29": { "type": "personal", "name": "调休假" },
+  "2026-09-20": { "type": "personal", "name": "调休假" }
 }
