@@ -57,6 +57,34 @@ body {
     background-color: #d1d5db;
 }
 
+/* Year picker in the settings modal. Options are created dynamically, so they
+   are styled here instead of relying on Tailwind's runtime class generation. */
+#year-options.heatmap-scroll-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#year-options .year-option {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #374151;
+    cursor: pointer;
+    user-select: none;
+}
+
+#year-options .year-option-input {
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+
+#year-options .year-hint {
+    grid-column: 1 / -1;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
 /* Heatmap cell coloring
    Color comes from the --cell-color CSS variable, which is set by JS from the
    preset type color or from the custom `color` field in the JSON data. */

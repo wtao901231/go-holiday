@@ -18,6 +18,7 @@ const PAST_OPACITY_FACTOR = 0.8;
 const TODAY_BORDER = 'border-2 border-[#1a73e8]'; // Google Blue for focus
 const DEFAULT_HOLIDAYS_URL = 'holidays.json';
 const STORAGE_KEY = 'custom_holidays_url';
+const YEAR_CACHE_KEY = 'go_holiday_years_cache';
 
 // Mobile Styles Definition (Tailwind classes)
 const MOBILE_STYLES = {
@@ -98,78 +99,99 @@ function applyCellStyle(cell, dayData, isPast) {
     if (isPast) cell.classList.add('is-past');
 }
 
-// Helper: Normalize holiday data and select display year
+// Helper: Normalize holiday data and group every record by its year.
+// Object form: { 'YYYY-MM-DD': { type, name, color } }
+// Array form:  [{ date: 'YYYY-MM-DD', type, name, color }]
+// Returns { dataByYear, years, defaultYear }; no year is discarded so the
+// settings panel can offer a display year for each year in the JSON.
 function prepareHolidayData(rawData) {
-    if (!rawData || typeof rawData !== 'object') {
-        return { dataByDate: {}, year: new Date().getFullYear() };
-    }
+    const empty = () => {
+        const currentYear = new Date().getFullYear();
+        return { dataByYear: {}, years: [currentYear], defaultYear: currentYear };
+    };
+
+    if (!rawData || typeof rawData !== 'object') return empty();
 
     const records = [];
-
     if (Array.isArray(rawData)) {
-        rawData.forEach((item, index) => {
+        rawData.forEach(item => {
             if (!item || !item.date) return;
-            records.push({
-                date: item.date,
-                type: item.type,
-                name: item.name,
-                color: item.color,
-                order: index
-            });
+            records.push({ date: item.date, type: item.type, name: item.name, color: item.color });
         });
     } else {
-        // Plain object with date keys
-        Object.keys(rawData).forEach((dateStr, index) => {
+        Object.keys(rawData).forEach(dateStr => {
             const value = rawData[dateStr];
             if (!value) return;
-            records.push({
-                date: dateStr,
-                type: value.type,
-                name: value.name,
-                color: value.color,
-                order: index
-            });
+            records.push({ date: dateStr, type: value.type, name: value.name, color: value.color });
         });
     }
 
-    if (records.length === 0) {
-        return { dataByDate: {}, year: new Date().getFullYear() };
-    }
-
-    // Aggregate by year
-    const yearStats = {};
+    const dataByYear = {};
     records.forEach(rec => {
+        if (typeof rec.date !== 'string' || !/^\d{4}/.test(rec.date)) return;
         const year = rec.date.slice(0, 4);
-        if (!/^\d{4}$/.test(year)) return;
-        if (!yearStats[year]) {
-            yearStats[year] = { count: 0 };
-        }
-        yearStats[year].count += 1;
+        if (!dataByYear[year]) dataByYear[year] = {};
+        // Later entries overwrite earlier ones for the same date
+        dataByYear[year][rec.date] = { type: rec.type, name: rec.name, color: rec.color };
     });
 
-    const years = Object.keys(yearStats);
-    if (years.length === 0) {
-        return { dataByDate: {}, year: new Date().getFullYear() };
+    const years = Object.keys(dataByYear).sort((a, b) => Number(a) - Number(b)).map(Number);
+    if (years.length === 0) return empty();
+
+    // Prefer the current year so "today" can be highlighted. Otherwise pick the
+    // year with most records, resolving ties to the most recent year.
+    const currentYear = new Date().getFullYear();
+    let defaultYear = currentYear;
+    if (!dataByYear[String(currentYear)]) {
+        defaultYear = years.reduce((best, y) => {
+            const bestCount = Object.keys(dataByYear[String(best)]).length;
+            const count = Object.keys(dataByYear[String(y)]).length;
+            return (count > bestCount || (count === bestCount && y > best)) ? y : best;
+        }, years[0]);
     }
 
-    // Choose year with most records; if tie, choose the most recent year
-    years.sort((a, b) => {
-        const countDiff = yearStats[b].count - yearStats[a].count;
-        if (countDiff !== 0) return countDiff;
-        return parseInt(b, 10) - parseInt(a, 10);
-    });
-    const displayYear = parseInt(years[0], 10);
+    return { dataByYear, years, defaultYear };
+}
 
-    // Build map for the chosen year; later entries overwrite earlier ones
-    const dataByDate = {};
-    records.forEach(rec => {
-        const year = parseInt(rec.date.slice(0, 4), 10);
-        if (year === displayYear && rec.date) {
-            dataByDate[rec.date] = { type: rec.type, name: rec.name, color: rec.color };
-        }
-    });
+// ===== Display year cache (localStorage, scoped by data source URL) =====
+// Shape: { [url]: year }. Legacy entries written as { active, selected } by
+// earlier versions are still readable.
+function readYearCache() {
+    try {
+        const cache = JSON.parse(localStorage.getItem(YEAR_CACHE_KEY) || '{}');
+        return (cache && typeof cache === 'object' && !Array.isArray(cache)) ? cache : {};
+    } catch (e) {
+        return {};
+    }
+}
 
-    return { dataByDate, year: displayYear };
+function getCachedYear(url) {
+    const entry = readYearCache()[url];
+    const value = (entry && typeof entry === 'object') ? entry.active : entry;
+    const year = Number(value);
+    return Number.isInteger(year) && year > 0 ? year : null;
+}
+
+function setCachedYear(url, year) {
+    try {
+        const cache = readYearCache();
+        cache[url] = year;
+        localStorage.setItem(YEAR_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+        // Storage may be unavailable (e.g. private mode); rendering still works.
+    }
+}
+
+// The cached year wins as long as it still exists in the current JSON.
+function resolveDisplayYear(years, defaultYear, cachedYear) {
+    return (cachedYear !== null && years.includes(cachedYear)) ? cachedYear : defaultYear;
+}
+
+// Helper: Hide a tooltip left over from a previous rendering
+function hideTooltip() {
+    const tooltip = document.getElementById('tooltip');
+    if (tooltip) tooltip.classList.add('hidden');
+    if (window.tooltipTimeout) clearTimeout(window.tooltipTimeout);
 }
 
 // Helper: Format Date to YYYY-MM-DD
@@ -284,39 +306,43 @@ function getUrlParameter(name) {
 }
 
 // Main Logic
-async function init() {
-    applyResponsiveStyles();
-
+function getDataSourceUrl() {
     // Priority: URL parameter > localStorage > default
-    const urlHoliday = getUrlParameter('holiday');
-    const customUrl = localStorage.getItem(STORAGE_KEY);
-    const url = urlHoliday || customUrl || DEFAULT_HOLIDAYS_URL;
+    return getUrlParameter('holiday') || localStorage.getItem(STORAGE_KEY) || DEFAULT_HOLIDAYS_URL;
+}
+
+async function loadHolidayData(url) {
+    let dataByYear = {};
+    let defaultYear = new Date().getFullYear();
+    let years = [defaultYear];
 
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error('Network response was not ok');
         const rawData = await response.json();
-        const { dataByDate, year } = prepareHolidayData(rawData);
-        
-        // Store data globally for resize events
-        window.holidayData = { dataByDate, year };
-        renderHeatmap(dataByDate, year);
+        ({ dataByYear, years, defaultYear } = prepareHolidayData(rawData));
     } catch (e) {
         console.error('Failed to load holiday data:', e);
-        // Fallback with empty data and current year if fetch fails
-        const currentYear = new Date().getFullYear();
-        window.holidayData = { dataByDate: {}, year: currentYear };
-        renderHeatmap({}, currentYear);
+        // Fallback with an empty grid for the current year if fetch fails
     }
-    
+
+    const displayYear = resolveDisplayYear(years, defaultYear, getCachedYear(url));
+    // Store state globally for resize events and settings changes.
+    // The main view renders straight from the cached year, with no year UI.
+    window.holidayData = { sourceUrl: url, dataByYear, years, defaultYear, displayYear };
+    renderHeatmap();
+}
+
+async function init() {
+    applyResponsiveStyles();
+    await loadHolidayData(getDataSourceUrl());
+
     // Add resize listener
     let resizeTimeout;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
-            if (window.holidayData) {
-                renderHeatmap(window.holidayData.dataByDate, window.holidayData.year);
-            }
+            if (window.holidayData) renderHeatmap();
         }, 200);
     });
 
@@ -325,7 +351,33 @@ async function init() {
     setupSettings();
 }
 
-function renderHeatmap(data, year) {
+function resetHeatmapScroll() {
+    const scrollContainer = document.getElementById('heatmap-container');
+    const scrollWrapper = document.getElementById('heatmap-scroll-wrapper');
+    if (scrollContainer) scrollContainer.scrollTop = 0;
+    if (scrollWrapper) scrollWrapper.scrollLeft = 0;
+}
+
+// Apply the single year chosen in the settings panel: cache it and re-render
+// the grid from scratch (cell positions + that year's data).
+function applyDisplayYear(year) {
+    const state = window.holidayData;
+    if (!state) return;
+    const displayYear = state.years.includes(year) ? year : state.defaultYear;
+    state.displayYear = displayYear;
+    setCachedYear(state.sourceUrl, displayYear);
+    hideTooltip();
+    resetHeatmapScroll();
+    renderHeatmap();
+}
+
+function renderHeatmap() {
+    const state = window.holidayData;
+    if (!state) return;
+    // The JSON is filtered by the cached display year before any cell is drawn
+    const data = state.dataByYear[String(state.displayYear)] || {};
+    const year = state.displayYear;
+
     const wrapper = document.getElementById('heatmap-scroll-wrapper');
     const container = document.getElementById('heatmap');
     const containerParent = container.parentElement;
@@ -366,6 +418,9 @@ function renderMobileHeatmap(data, year) {
     const displayYear = year || new Date().getFullYear();
     const now = new Date();
     const todayStr = formatDate(now);
+    // "Today" only exists in the real current year; other years are entirely
+    // in the past or the future, so all their cells are veiled or bright.
+    const isCurrentYear = displayYear === now.getFullYear();
     let todayElement = null;
 
     for (let month = 0; month < 12; month++) {
@@ -395,7 +450,7 @@ function renderMobileHeatmap(data, year) {
             const currentDate = new Date(displayYear, month, d);
             const dateStr = formatDate(currentDate);
             const dayData = data[dateStr];
-            const isToday = dateStr === todayStr;
+            const isToday = isCurrentYear && dateStr === todayStr;
             const isPast = isPastDate(dateStr, todayStr);
 
             const label = dayData ? (dayData.name || '') : '';
@@ -511,10 +566,11 @@ function renderDesktopHeatmap(data, year) {
     
     let currentDate = new Date(startDate);
 
-    // Compute a "today" within the display year for initial focus
+    // Use the real today: a different year has no "today" cell at all, but
+    // past/future comparison still uses the real date.
     const now = new Date();
-    let today = new Date(displayYear, now.getMonth(), now.getDate());
-    const todayStr = formatDate(today);
+    const todayStr = formatDate(now);
+    const isCurrentYear = displayYear === now.getFullYear();
 
     let todayCoords = { w: 0, d: 0 }; // Default fallback
 
@@ -525,7 +581,7 @@ function renderDesktopHeatmap(data, year) {
         for (let d = 0; d < 7; d++) {
             const dateStr = formatDate(currentDate);
             const dayData = data[dateStr];
-            const isToday = dateStr === todayStr;
+            const isToday = isCurrentYear && dateStr === todayStr;
             const isPast = isPastDate(dateStr, todayStr);
 
             const label = dayData ? (dayData.name || '') : '';
@@ -713,11 +769,49 @@ function setupSettings() {
     const saveBtn = document.getElementById('save-settings-btn');
     const resetBtn = document.getElementById('reset-default-btn');
     const input = document.getElementById('holidays-url');
+    const yearOptions = document.getElementById('year-options');
+
+    // One display year picked from all years present in the current JSON
+    const renderYearOptions = () => {
+        const state = window.holidayData;
+        yearOptions.innerHTML = '';
+        if (!state || !state.years.length) {
+            const hint = document.createElement('p');
+            hint.className = 'year-hint';
+            hint.textContent = '当前数据源暂无年份数据';
+            yearOptions.appendChild(hint);
+            return;
+        }
+
+        state.years.forEach(y => {
+            const label = document.createElement('label');
+            label.className = 'year-option';
+
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'display-year';
+            radio.className = 'year-option-input';
+            radio.value = String(y);
+            radio.checked = (y === state.displayYear);
+
+            const text = document.createElement('span');
+            text.textContent = String(y);
+
+            label.appendChild(radio);
+            label.appendChild(text);
+            yearOptions.appendChild(label);
+        });
+    };
+
+    const getSelectedYear = () => {
+        const checked = yearOptions.querySelector('.year-option-input:checked');
+        return checked ? Number(checked.value) : null;
+    };
 
     // Open Modal
     btn.addEventListener('click', () => {
-        const currentUrl = localStorage.getItem(STORAGE_KEY) || '';
-        input.value = currentUrl;
+        input.value = localStorage.getItem(STORAGE_KEY) || '';
+        renderYearOptions();
         modal.classList.remove('hidden');
     });
 
@@ -726,7 +820,7 @@ function setupSettings() {
         modal.classList.add('hidden');
     };
     closeBtn.addEventListener('click', closeModal);
-    
+
     // Close on click outside
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
@@ -737,12 +831,24 @@ function setupSettings() {
         const url = input.value.trim();
         if (url) {
             localStorage.setItem(STORAGE_KEY, url);
-            location.reload(); // Reload to apply changes
         } else {
             // If empty, treat as reset
             localStorage.removeItem(STORAGE_KEY);
-            location.reload();
         }
+
+        const effectiveUrl = getUrlParameter('holiday') || url || DEFAULT_HOLIDAYS_URL;
+        const state = window.holidayData;
+
+        if (!state || effectiveUrl !== state.sourceUrl) {
+            // A different source needs a fresh fetch. Its years are unknown yet,
+            // so the old choice is intentionally not carried over.
+            location.reload();
+            return;
+        }
+
+        const pickedYear = getSelectedYear();
+        if (pickedYear !== null) applyDisplayYear(pickedYear);
+        closeModal();
     });
 
     // Reset Default
