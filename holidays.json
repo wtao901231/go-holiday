@@ -121,5 +121,11 @@
   "2027-02-02": { "type": "color_life", "name": "休假", "color": "#E60012" },
   "2027-02-03": { "type": "color_life", "name": "休假", "color": "#E60012" },
   "2027-02-04": { "type": "color_life", "name": "休假", "color": "#E60012" },
-  "2027-02-14": { "type": "color_life", "name": "春节特别假", "color": "#E60012" }
+  "2027-02-14": { "type": "color_life", "name": "春节特别假", "color": "#E60012" },
+  "2027-06-01": { "type": "personal", "name": "儿童节" },
+  "2027-06-25": { "type": "color_life", "name": "病休(体检)", "color": "#A5D6C5" },
+  "2026-12-31": { "type": "color_life", "name": "元旦滑雪", "color": "#CFE0E8" },
+  "2027-01-01": { "type": "color_life", "name": "元旦滑雪", "color": "#CFE0E8" },
+  "2027-01-02": { "type": "color_life", "name": "元旦滑雪", "color": "#CFE0E8" },
+  "2027-01-03": { "type": "color_life", "name": "元旦滑雪", "color": "#CFE0E8" }
 }
